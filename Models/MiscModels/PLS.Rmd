@@ -1,0 +1,96 @@
+---
+title: "PLS proy"
+author: "Raquel Gironés Sangüesa"
+date: "4/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(readr)
+library(caret)
+library(dplyr)
+library(ropls)
+```
+
+```{r}
+Nov2014 = read_delim("/Users/RAQUEL/desktop/cd/PROY III/Nov2014.csv", 
+    ";", escape_double = FALSE, col_types = cols(arrivaldate = col_date(format = "%Y-%m-%d"), 
+        bookingdate = col_date(format = "%Y-%m-%d"), 
+        bookingday = col_factor(levels = c("Sunday", 
+            "Saturday", "Friday", "Thursday", 
+            "Wednesday", "Tuesday", "Monday")), 
+        bookingsign = col_factor(levels = c("NEW_BOOKING", 
+            "PARTIAL_ADDITION", "PARTIAL_CANCELLATION", 
+            "FULL_CANCELLATION")), destinationcity = col_factor(levels = c("PAR")), 
+        leadtime = col_integer(), lengthofstay = col_integer(), 
+        numnss = col_integer(), numpss = col_integer(), 
+        pax = col_integer()), trim_ws = TRUE)
+```
+
+```{r}
+#Remove destination city, since it's always constant (PAR)
+Nov2014 = Nov2014[,-5]
+#print("Done!")
+```
+
+```{r}
+#Transforming character variables into factors
+Nov2014$poocountry = factor(Nov2014$poocountry)
+Nov2014$origincity = factor(Nov2014$origincity)
+Nov2014$paxprofile = factor(Nov2014$paxprofile)
+Nov2014$losname = factor(Nov2014$losname)
+Nov2014$cabinclass = factor(Nov2014$cabinclass)
+Nov2014$distchannel = factor(Nov2014$distchannel)
+
+table(Nov2014$paxprofile)
+table(Nov2014$paxprofile) / sum(table(Nov2014$paxprofile))
+```
+
+```{r}
+set.seed(888)
+
+myTrainControl = trainControl(method = "repeatedcv",  
+                              number = 5,  
+                              repeats = 5)
+
+trainIndex = createDataPartition(Nov2014$paxprofile, p = 0.75, list = F)
+trainDatos = Nov2014[trainIndex,]
+testDatos = Nov2014[-trainIndex,]
+
+trainDatosNum = trainDatos[,c(6, 12, 13, 14, 16, 7)]
+
+NA2Zero = function(value){
+  if (is.na(value)){
+    return (0)
+  }
+  
+  else {
+    return (value)
+  }
+}
+
+trainDatosNum$losclean = trainDatosNum$losclean %>% sapply(NA2Zero)
+```
+
+```{r}
+Y = trainDatosNum[,6]
+X = trainDatosNum[,-6]
+# Convertir objeto AsIs en matriz
+Y= data.matrix(Y)
+```
+
+
+```{r}
+#m <- opls(x= X, y= Y, predI = NA, crossvalI= floor(0.25*nrow(X)), scaleC = "standard")
+m <- opls(x= X, y= Y, predI = 2, crossvalI= 10, scaleC = "standard")
+m@summaryDF
+#m2 <- opls(x= X, y= Y, predI = 2, crossvalI= 10, scaleC = "standard")
+```
+
+
+
+
