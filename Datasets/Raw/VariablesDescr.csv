@@ -1,36 +1,3 @@
-Variable;Type;Accepts NAs;Description
-bookingdate;datetime;False;The last transaction date of the booking. If this transaction is the initial booking, pnrcreationdate (first transaction date of the booking) and bookingdate will be the same. If the booking has been modified or cancelled, this will be the date of the most recent change.
-arrivaldate;datetime;False;The local date of arrival.
-poocountry;factor;False;The first country of departure of the full itinerary.
-origincity;factor;False;The flight's departure city.
-destinationcity;factor;False;The flight's arrival city.
-bookingsign;factor;False;The transaction type that indicates new bookings, modifications or cancellations.
-leadtime;int;False;Difference in days between booking date and arrival date
-paxprofile;factor;False;The purpose of the trip according to the ForwardKeys classification algorithm.
-lengthofstay;int;False;The number of days at the destination before the next flight in the itinerary. 0 indicates a return flight, end of trip, transfer or stopover.
-losname;factor;False;The category of the length of stay.
-cabinclass;factor;False;The cabin class code.
-distchannel;factor;False;The type of travel agency: Online, Retail, Corporate or Others.
-pax;int;False;The number of passengers with the same booking characteristics in one booking.
-numnss;int;False;The number of next steps/stops/segments after the analysed segment
-numpss;int;False;The number of previous steps/stops/segments before the analysed segment
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
-;;;
+version https://git-lfs.github.com/spec/v1
+oid sha256:7753bac8c0926c67223425d02c7a527a6014bef5f3c57c2e17bf816dd6f64bfc
+size 1604
