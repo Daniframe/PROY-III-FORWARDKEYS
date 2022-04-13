@@ -1,0 +1,201 @@
+---
+title: "Discriminant analysis"
+author: "Daniel Romero Alvarado"
+date: "31 de marzo de 2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(caret)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(biotools)
+```
+
+```{r}
+Nov2014 = read_delim("C:/DANIEL/UNIVERSIDAD/CD3/PRYIII/MODELOS/Nov2014.csv", 
+    ";", escape_double = FALSE, col_types = cols(arrivaldate = col_date(format = "%Y-%m-%d"), 
+        bookingdate = col_date(format = "%Y-%m-%d"), 
+        bookingday = col_factor(levels = c("Sunday", 
+            "Saturday", "Friday", "Thursday", 
+            "Wednesday", "Tuesday", "Monday")), 
+        bookingsign = col_factor(levels = c("NEW_BOOKING", 
+            "PARTIAL_ADDITION", "PARTIAL_CANCELLATION", 
+            "FULL_CANCELLATION")), destinationcity = col_factor(levels = c("PAR")), 
+        leadtime = col_integer(), lengthofstay = col_integer(), 
+        numnss = col_integer(), numpss = col_integer(), 
+        pax = col_integer()), trim_ws = TRUE)
+```
+
+```{r}
+#Remove destination city, since it's always constant (PAR)
+Nov2014 = Nov2014[,-5]
+print("Done!")
+```
+
+```{r}
+#Transforming character variables into factors
+Nov2014$poocountry = factor(Nov2014$poocountry)
+Nov2014$origincity = factor(Nov2014$origincity)
+Nov2014$paxprofile = factor(Nov2014$paxprofile)
+Nov2014$losname = factor(Nov2014$losname)
+Nov2014$cabinclass = factor(Nov2014$cabinclass)
+Nov2014$distchannel = factor(Nov2014$distchannel)
+```
+
+```{r}
+set.seed(888)
+
+NA2Zero = function(value){
+  if (is.na(value)){
+    return (0)
+  }
+  
+  else {
+    return (value)
+  }
+}
+
+NA2Default = function(value){
+  if (is.na(value)){
+    if (is.factor(value)){
+      return (factor("DEFAULT"))
+    }
+    
+    else {
+      return ("DEFAULT")
+    }
+  }
+  
+  else {
+    return (value)
+  }
+}
+
+Nov2014$losnameclean = Nov2014$losnameclean %>% sapply(NA2Default)
+Nov2014$losclean = Nov2014$losclean %>% sapply(NA2Zero)
+
+Nov2014$losnameclean = factor(Nov2014$losnameclean)
+```
+
+```{r}
+#Removing the deprecated "lengthofstay" and "losname" variables
+Nov2014 = Nov2014[, -c(8, 9)]
+```
+
+Let's try encoding some variables:
+
+```{r categorisation}
+str(Nov2014)
+```
+
+```{r}
+uniques = c()
+vars = c()
+
+for (var in colnames(Nov2014)){
+  if (is.factor(Nov2014[[var]])){
+    vars = c(vars, var)
+    uniques = c(uniques, length(unique(Nov2014[[var]])))
+  }
+}
+
+print(data.frame("Variable" = vars,
+                 "Unique values" = uniques))
+```
+
+```{r}
+#We also remove variables we won't be using, such as dates or categorical variables with too many
+#distinct values and others for space/time performance:
+
+for (i in 1:length(colnames(Nov2014))){
+  print(paste(i, colnames(Nov2014)[i]))
+  }
+
+NewNov2014 = Nov2014[, -c(1, 2, 3, 4, 5, 7, 13)]
+
+dmy = dummyVars( ~ ., data = NewNov2014)
+
+NewNov2014 = cbind(data.frame(predict(dmy, NewNov2014)), Nov2014$paxprofile)
+colnames(NewNov2014)[22] = "paxprofile"
+```
+
+```{r remove one category to avoid colinearity}
+colnames(NewNov2014)
+NewNov2014 = NewNov2014[, -c(2, 6, 14)]
+```
+
+
+```{r}
+table(NewNov2014$paxprofile)
+table(NewNov2014$paxprofile) / sum(table(NewNov2014$paxprofile))
+colnames(NewNov2014)
+```
+
+```{r}
+indexes = rownames(NewNov2014[NewNov2014$paxprofile == "LEISURE",])
+chosen_indexes = sample(indexes, size = 1060000)
+NewNov2014 = rbind(NewNov2014[NewNov2014$paxprofile != "LEISURE", ], NewNov2014[chosen_indexes,])
+table(NewNov2014$paxprofile)
+table(NewNov2014$paxprofile) / nrow(NewNov2014)
+```
+
+```{r}
+trainIndex = createDataPartition(NewNov2014$paxprofile, p = 0.75, list = F)
+trainDatos = NewNov2014[trainIndex,]
+testDatos = NewNov2014[-trainIndex,]
+```
+
+
+```{r}
+lda_model = train(paxprofile ~ ., method = "lda", data = trainDatos, preProcess = c("scale", "center"))
+```
+
+```{r}
+pred = predict(lda_model, testDatos[,-19])
+```
+
+```{r}
+confusionMatrix(pred, testDatos$paxprofile)
+```
+
+```{r}
+
+#Only with numerical values
+
+trainNum = trainDatos[, c(1, 8, 9, 10, 11, 19)]
+testNum = testDatos[,c(1, 8, 9, 10, 11, 19)]
+```
+
+```{r}
+lda_num_model = train(paxprofile ~ ., method = "lda", data = trainNum, preProcess = c("scale", "center"))
+```
+
+```{r}
+predNum = predict(lda_num_model, testNum[,-6])
+```
+
+```{r}
+confusionMatrix(predNum, testNum$paxprofile)
+```
+
+```{r variable importance}
+lda_model.imp = varImp(lda_model)
+```
+
+```{r}
+plot(lda_model.imp, top = 5)
+```
+
+```{r first two discriminant dimensions}
+lda_model.discrf = as.data.frame(lda_model$finalModel$scaling)
+lda_model.discrw = c(0.7253, 0.2451, 0.0297)
+
+ggplot(data = lda_model.discrf, aes(x = LD1, y = LD2, label = rownames(lda_model.discrf))) +
+  geom_point() + geom_hline(yintercept = 0, linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "dashed") + 
+  geom_label_repel() + theme_bw()
+```
+
