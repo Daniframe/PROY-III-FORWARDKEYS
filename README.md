@@ -4,9 +4,9 @@ Repository for all the code used to obtain the models shown in the Milestones of
 ### Abstract
 The air travel industry is a really volatile market, where sudden events can lead to unexpected results in flight transactions. Companies of the sector must be ahead of the curve in predicting and understanding the impact of these events. 
 
-	ForwardKeys, a data collection and analysis company, has provided us data about flight transactions in Paris during November 2014 and 2015. In this study we use association rules to discover the main repeating patterns among the data, specially those who are related to cancellations, to better explain and outline the clients profile of the market. 
+ForwardKeys, a data collection and analysis company, has provided us data about flight transactions in Paris during November 2014 and 2015. In this study we use association rules to discover the main repeating patterns among the data, specially those who are related to cancellations, to better explain and outline the clients profile of the market. 
 
-	Furthermore, to better understand what determines the profile of a client, a linear discriminant analysis is performed to assign importance to attributes of our dataset. 
+Furthermore, to better understand what determines the profile of a client, a linear discriminant analysis is performed to assign importance to attributes of our dataset. 
 
 ### Introduction
 
