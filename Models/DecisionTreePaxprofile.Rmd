@@ -1,0 +1,241 @@
+---
+title: "DecisionTreePaxprofile"
+author: "Daniel Romero Alvarado"
+date: "26 de abril de 2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries echo = FALSE}
+library(readr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(reshape2)
+library(ggplot2)
+library(C50)
+library(dplyr)
+```
+
+
+```{r data loading}
+Nov2014 = read_delim("C:/DANIEL/UNIVERSIDAD/CD3/PRYIII/MODELOS/Nov2014.csv", 
+    ";", escape_double = FALSE, col_types = cols(arrivaldate = col_date(format = "%Y-%m-%d"), 
+        bookingdate = col_date(format = "%Y-%m-%d"), 
+        bookingday = col_factor(levels = c("Sunday", 
+            "Saturday", "Friday", "Thursday", 
+            "Wednesday", "Tuesday", "Monday")), 
+        bookingsign = col_factor(levels = c("NEW_BOOKING", 
+            "PARTIAL_ADDITION", "PARTIAL_CANCELLATION", 
+            "FULL_CANCELLATION")), destinationcity = col_factor(levels = c("PAR")), 
+        leadtime = col_integer(), lengthofstay = col_integer(), 
+        numnss = col_integer(), numpss = col_integer(), 
+        pax = col_integer()), trim_ws = TRUE)
+```
+
+```{r remove destinycity}
+#Remove destination city, since it's always constant (PAR)
+Nov2014 = Nov2014[,-5]
+```
+
+```{r days_sinceNov2014}
+#add days passed since 2014-11-01 to use the "date" as a variable in the model
+
+Nov2014$days_sinceNov2014 = as.numeric(format(Nov2014$bookingdate, format = "%d"))
+```
+
+```{r categorical variables}
+#Transforming character variables into factors
+Nov2014$poocountry = factor(Nov2014$poocountry)
+Nov2014$origincity = factor(Nov2014$origincity)
+Nov2014$paxprofile = factor(Nov2014$paxprofile)
+Nov2014$losname = factor(Nov2014$losname)
+Nov2014$cabinclass = factor(Nov2014$cabinclass)
+Nov2014$distchannel = factor(Nov2014$distchannel)
+```
+
+```{r recoding to eliminate NAs}
+#Removing NAs via recondification in losnameclean and losclean
+
+NA2Zero = function(value){
+  if (is.na(value)){
+    return (0)
+  }
+  
+  else {
+    return (value)
+  }
+}
+
+NA2Default = function(value){
+  if (is.na(value)){
+    if (is.factor(value)){
+      return (factor("DEFAULT"))
+    }
+    
+    else {
+      return ("DEFAULT")
+    }
+  }
+  
+  else {
+    return (value)
+  }
+}
+
+Nov2014$losnameclean = Nov2014$losnameclean %>% sapply(NA2Default)
+Nov2014$losclean = Nov2014$losclean %>% sapply(NA2Zero)
+
+Nov2014$losnameclean = factor(Nov2014$losnameclean)
+```
+
+```{r removing obsolote variables}
+#Removing the deprecated "lengthofstay" and "losname" variables
+Nov2014 = Nov2014[, -c(8,9)]
+```
+
+```{r unique values in categorical variables}
+#Checking distinct values in each categorical variable in order to determine whether to use them in the model or not (for training space/time performance)
+
+uniques = c()
+vars = c()
+
+for (var in colnames(Nov2014)){
+  if (is.factor(Nov2014[[var]])){
+    vars = c(vars, var)
+    uniques = c(uniques, length(unique(Nov2014[[var]])))
+  }
+}
+
+print(data.frame("Variable" = vars,
+                 "Unique values" = uniques))
+```
+
+```{r unbalanced dataset}
+#Remove poocountry, origincity, bookingsign, and date variables
+
+NewNov2014 = Nov2014[, -c(1,2,3,4,5)]
+
+#Check for class balance:
+class_distribution = (table(NewNov2014$paxprofile) / nrow(NewNov2014)) %>% melt()
+class_distribution
+colnames(class_distribution) = c("Profile", "Frequency")
+ggplot(class_distribution) + geom_bar(aes(x = Profile, y = Frequency), stat = "identity", fill = "green", color = "black") + scale_y_continuous(expand = c(0,0), limits = c(0, 0.9)) + theme_bw()
+```
+
+Clearly unbalanced!
+
+We'll train some models with unbalaced classes for now. Later we'll see possible corrections to this problem:
+
+```{r unbalanced train-test}
+#unbalanced train-test partition
+
+set.seed(108)
+
+UnbTrainIndex = createDataPartition(NewNov2014$paxprofile, p = 0.7, list = F)
+UnbTrain = NewNov2014[UnbTrainIndex,]
+UnbTest = NewNov2014[-UnbTrainIndex,]
+```
+
+```{r unbalanced rpart model}
+#rpart model
+
+rtree = rpart(paxprofile ~ ., data = UnbTrain, method = "class", parms = list(prior = class_distribution$Frequency))
+```
+
+```{r unbalanced rpart model plot}
+fancyRpartPlot(rtree, sub = "", type = 2)
+```
+
+```{r unbalanced rpart model predictions}
+rtree.pred <- predict(rtree, UnbTest, type = "class")
+```
+
+```{r unbalanced rpart model evaluation}
+confusionMatrix(rtree.pred, UnbTest$paxprofile, mode = "everything")
+```
+
+Time to balance the two main classes: LEISURE and BUSINESS
+
+```{r balancing the dataset via undersampling}
+chosen_rows = sample_n(NewNov2014[NewNov2014$paxprofile == "LEISURE",], size = 1060000)
+BalNov2014 = rbind(NewNov2014[NewNov2014$paxprofile != "LEISURE",], chosen_rows)
+```
+
+
+```{r balanced dataset}
+Bal_class_distribution = (table(BalNov2014$paxprofile) / nrow(BalNov2014)) %>% melt()
+Bal_class_distribution
+colnames(Bal_class_distribution) = c("Profile", "Frequency")
+ggplot(Bal_class_distribution) + geom_bar(aes(x = Profile, y = Frequency), stat = "identity", fill = "green", color = "black") + scale_y_continuous(expand = c(0,0), limits = c(0, 0.6)) + theme_bw() + ggtitle("Class distribution of paxprofile after undersampling")
+```
+
+```{r balanced train-test}
+BalTrainIndex = createDataPartition(BalNov2014$paxprofile, p = 0.7, list = F)
+BalTrain = BalNov2014[BalTrainIndex,]
+BalTest = BalNov2014[-BalTrainIndex,]
+```
+
+```{r balanced rpart model}
+BalRtree = rpart(paxprofile ~ ., data = BalTrain, method = "class", parms = list(prior = Bal_class_distribution$Frequency))
+```
+
+```{r balanced rpart model plot}
+fancyRpartPlot(BalRtree, sub = "", type = 2)
+```
+
+```{r balanced rpart model predictions}
+BalRtree.pred <- predict(BalRtree, BalTest, type = "class")
+```
+
+```{r rbalanced rpart model evaluation}
+confusionMatrix(BalRtree.pred, BalTest$paxprofile, mode = "everything")
+```
+
+A bit worse... let's try with the original unbalanced dataset but giving the rows with paxprofile = BUSINESS more weight with a loss matrix:
+
+```{r cost matrix}
+loss_matrix = matrix(c(0,1,10,1.5,1,0,1,1,1,1,0,1,1,1,1,0), nrow = 4, ncol = 4)
+```
+
+```{r weighted rpart tree model}
+WeightedUnbRtree = rpart(paxprofile ~ ., data = UnbTrain, method = "class", 
+                         parms = list(loss = loss_matrix))
+```
+
+```{r weighted rpart tree model plot}
+fancyRpartPlot(WeightedUnbRtree, sub = "", type = 2)
+```
+
+```{r weighted rpart model prediction}
+WeightedUnbRtree.pred <- predict(WeightedUnbRtree, UnbTest, type = "class")
+```
+
+```{r weighted rpart confusion matrix}
+confusionMatrix(WeightedUnbRtree.pred, UnbTest$paxprofile, mode = "everything")
+```
+
+```{r weighted unbalanced tree with "information" function as impurity function}
+WeightedInfUnbRtree = rpart(paxprofile ~ ., data = UnbTrain, method = "class", 
+                         parms = list(loss = loss_matrix,
+                                      split = "information"))
+```
+
+```{r}
+fancyRpartPlot(WeightedInfUnbRtree, sub = "", type = 2)
+```
+
+```{r}
+WeightedInfUnbRtree.pred <- predict(WeightedInfUnbRtree, UnbTest, type = "class")
+```
+
+```{r}
+confusionMatrix(WeightedInfUnbRtree.pred, UnbTest$paxprofile, mode = "everything")
+```
+
