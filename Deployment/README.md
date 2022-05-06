@@ -5,7 +5,7 @@ We tried to find the attributes of the passengers that most influence a full can
 
  ### How to navigate the app
  <ol>
-<li>Select the datasets (csv, ; separated) to examine, bottom-left for the data of the event, bottom-right for the data to compare with. **Note**: Datasets need to share the same timeframe</li>
+<li>Select the datasets (csv, ; separated) to examine, bottom-left for the data of the event, bottom-right for the data to compare with. **Note** : Datasets need to share the same timeframe</li>
 
 <li>Data will start to load (watch the progress bar update)</li>
 <li>On the DASHBOARD page, select the bookingsign to analyse and click compute rules (we can change it as many times as we want)
