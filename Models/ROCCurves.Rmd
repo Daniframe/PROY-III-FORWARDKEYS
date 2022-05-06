@@ -1,0 +1,121 @@
+---
+title: "ROCCurves"
+author: "Daniel Romero Alvarado"
+date: '2022-05-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo = FALSE}
+library(readr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(biotools)
+library(tidyr)
+```
+
+
+```{r data loading}
+TreeNov2014 = readRDS("TreeNov2014.rda")
+BalTreeNov2014 = readRDS("BalTreeNov2014.rda")
+LDANov2014 = readRDS("LDANov2014.rda")
+BalLDANov2014 = readRDS("LDABalancedNov2014.rda")
+```
+
+```{r train-test split}
+set.seed(888)
+
+TrainIndex = createDataPartition(TreeNov2014$paxprofile, p = 0.7, list = F)
+TreeTrain = TreeNov2014[TrainIndex,]
+TreeTest = TreeNov2014[-TrainIndex,]
+
+LDANov2014 = LDANov2014[,-c(4, 8, 15, 23)]
+
+LDATrain = LDANov2014[TrainIndex,]
+LDATest = LDANov2014[-TrainIndex,]
+
+BalTrainIndex= createDataPartition(BalLDANov2014$paxprofile, p = 0.7, list = F)
+BalTrain = BalLDANov2014[BalTrainIndex,]
+BalTest = BalLDANov2014[-BalTrainIndex,]
+```
+
+
+```{r models loading}
+load("lda_model.rda")
+load("rtree_model.rda")
+LDABalanced = readRDS("LDABalanced.rda")
+```
+
+```{r}
+library(pROC)
+
+rtree.pred = predict(rtree, TreeTest, type = "class")
+rtree.pred.prob = predict(rtree, TreeTest, type = "prob")
+
+lda_model.pred = predict(lda_model, LDATest[,-21])
+lda_model.pred.prob = predict(lda_model, LDATest[,-21], type = "prob")
+
+bal_lda_model.pred = predict(LDABalanced, BalTest[,-21])
+bal_lda_model.prob = predict(LDABalanced, BalTest[,-21], type = "prob")
+```
+
+```{r}
+TreeROC = multiclass.roc(TreeTest$paxprofile, rtree.pred.prob)
+LDAROC = multiclass.roc(LDATest$paxprofile, lda_model.pred.prob)
+BalLDAROC = multiclass.roc(BalTest$paxprofile, bal_lda_model.prob)
+```
+
+```{r}
+for (i in 1:length(TreeROC$rocs)){
+  TreeROC.c1c2 = data.frame("TPR" = TreeROC$rocs[[i]][[1]]$sensitivities,
+                            "FPR" = 1 - TreeROC$rocs[[i]][[1]]$specificities)
+  LDAROC.c1c2 = data.frame("TPR" = LDAROC$rocs[[i]][[1]]$sensitivities,
+                           "FPR" = 1 - LDAROC$rocs[[i]][[1]]$specificities)
+  
+  g1 = ggplot() + geom_path(data = TreeROC.c1c2, aes(x = FPR, y = TPR, color = "RTree")) + 
+       geom_path(data = LDAROC.c1c2, aes(x = FPR, y = TPR, color = "LDA")) + labs(color = "Legend") +
+       scale_color_manual(values = c("LDA" = "green", "RTree" = "blue")) + 
+    geom_segment(data = TreeROC.c1c2, aes(x = 0, y = 0, xend = 1, yend = 1), linetype = "dashed") +
+    theme_classic() + ggtitle(names(TreeROC$rocs[i]))
+  print(g1)
+}
+```
+
+
+```{r}
+confusionMatrix(bal_lda_model.pred, BalTest$paxprofile, mode = "everything")
+```
+
+```{r}
+for (i in 1:length(BalLDAROC$rocs)){
+  BalLDAROC.c1c2 = data.frame("TPR" = BalLDAROC$rocs[[i]][[1]]$sensitivities,
+                           "FPR" = 1 - BalLDAROC$rocs[[i]][[1]]$specificities)
+  
+  g1 = ggplot() +  geom_path(data = BalLDAROC.c1c2, aes(x = FPR, y = TPR, color = "LDA")) + labs(color = "Legend") +
+       scale_color_manual(values = c("LDA" = "green")) +
+    geom_segment(data = BalLDAROC.c1c2, aes(x = 0, y = 0, xend = 1, yend = 1), linetype = "dashed") +
+    theme_classic() + ggtitle(names(BalLDAROC$rocs[i]))
+  print(g1)
+}
+```
+
+```{r}
+bal_lda_model.varImp = varImp(LDABalanced)
+bal_lda_model.discrf = as.data.frame(LDABalanced$finalModel$scaling) %>% arrange(desc(LD1))
+bal_lda_model.discrw = c(0.7253, 0.2451, 0.0297)
+colnames(bal_lda_model.discrf) = c("LD1 (0.73)", "LD2 (0.24)", "LD3 (0.03)")
+```
+
+```{r}
+print(bal_lda_model.discrf)
+```
+
