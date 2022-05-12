@@ -62,11 +62,12 @@ __HOW TO NAVIGATE THE APP__
 
 <ol>
 <li>Select the datasets (csv, ; separated) to examine, bottom-left for the data of the event, bottom-right for the data to compare with. **Note**: Datasets need to share the same timeframe</li>
-
 <li>Data will start to load (watch the progress bar update).</li>
 <li>On the DASHBOARD page, select the bookingsign to analyse and click compute rules (we can change it as many times as we want).
      The rules (attributes) will be plotted on the first chart by their score (influence on the event year).</li>
 <li>Choose the combination of attributes to plot and press update, the second page of plots will show the relative frequency of the bookingsign selected for the datasets with and without the conditions, to easily compare them. As of right now it is not robust to errors, so if a combination of attributes does not exist in the data, the app will stop working.</li>
+<li>A variety of metrics and information about the attack will be shown on the last tab. </li>
+
 </ol>
 
 ```{r}
@@ -273,7 +274,7 @@ datasett$forplot$Applied_to = c(rep(gsub('.{3}$', '', msg), days*2),
 
 ## Column {.tabset .tabset-fade}
 
-### Plot1 
+### Best attributes plot
 
 ```{r}
 renderPlot({
@@ -298,7 +299,7 @@ On the other hand, the red bars mean that people with those characteristics were
 
 You can choose a combination of attributes in the left side of the DASHBOARD page, click the button, and the plot will update. Notice how big the difference is between the month of the event with the conditions and the other lines. Notice also how there is no big difference between the normal month and the normal month with the conditions, this is because the conditions of the passengers are specially important for a cancellation due to the event/attack, not for any other reason.
 
-### Plot2
+### Relative Cancellations plot
 
  
 
