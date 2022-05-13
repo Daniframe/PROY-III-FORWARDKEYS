@@ -22,7 +22,7 @@ arules, dplyr, ggplot2, tidyverse, reshape2, flexdashboard, shiny, shinyWidgets
 ## Data-ready deployment
 
 As a way to easily show the dashboard. This app does not need to load any data from the client. It needs to have the datasets Nov2015 and Nov2014 installed though.
-The easiest way to access the app is through shinyapps where it is uploaded.\
+The easiest way to access the app is through shinyapps where it is uploaded.
 ### shinyapps link
-* Data-ready application: https://carlo0os.shinyapps.io/deployment_data-ready/
-* Original Deployment: https://carlo0os.shinyapps.io/deployment_forwardkeys/
+* Data-ready application: https://carlo0os.shinyapps.io/deployment_data-ready/ (sample with 500,000 transactions on each dataset, otherwise it won't load on the free version)
+* Original Deployment: https://carlo0os.shinyapps.io/deployment_forwardkeys/ (In the same way, it needs small (~500k transactions) on each file at max)
